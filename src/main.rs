@@ -1,12 +1,12 @@
-mod string_utils;
-
-use std::io;
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader};
-use std::collections::HashMap;
-use std::ops::Index;
 use std::collections::hash_map::RandomState;
-use java_properties::read;
+use std::collections::HashMap;
+use std::fs::File;
+use std::io;
+use std::io::{BufReader, Write};
+
+use java_properties;
+
+mod string_utils;
 
 struct PropKey {
     name_part: String,
@@ -42,27 +42,34 @@ impl PropKey {
 fn main() {
 
     println!("Welcome to properties converter!");
-    let mut file;
+    print_and_flush("Enter the full path of the properties file you want to convert to yaml: ");
+
+    let file;
     loop {
-        print!("Enter the full path of the properties file you want to convert to yaml: ");
-        let input_file = get_user_input();
+        let user_input = get_user_input();
 
-        println!("Input: {}", input_file);
+        if user_input == "exit" {
+            println!("Exiting properties converter...");
+            std::process::exit(0)
+        }
 
-        file = match File::open(&input_file.trim()) {
+        println!("Trying to open file: {}", user_input);
+
+        file = match File::open(&user_input) {
             Ok(file) => file,
             Err(e) => {
-                println!("File could not be read! Is the path valid? Are the rights of the current user sufficient? \n{}", e);
+                println!("File could not be read! Is the path valid? Are the rights of the current user sufficient? \n{}\n", e);
+                print_and_flush("Enter the full path of the properties file you want to convert to yaml: ");
                 continue
             }
         };
         break;
     }
-    let properties_map = match read(BufReader::new(file)) {
+
+    let properties_map = match java_properties::read(BufReader::new(file)) {
         Ok(props) => props,
         Err(e) => {
-            println!("Failed to parse properties! Do file contents violate Java properties syntax? \n {}", e);
-            panic!()
+            panic!("Failed to parse properties! Do file contents violate Java properties syntax? \n {}", e);
         }
     };
 
@@ -73,8 +80,13 @@ fn main() {
 
 }
 
+fn print_and_flush(message: &str) {
+    print!("{}", message);
+    io::stdout().flush().unwrap();
+}
+
 fn get_user_input() -> String {
     let mut input_file = String::new();
-    io::stdin().read_line( &mut input_file);
-    input_file
+    io::stdin().read_line( &mut input_file).unwrap();
+    String::from(input_file.trim())
 }
